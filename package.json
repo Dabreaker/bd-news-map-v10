@@ -1,0 +1,19 @@
+{
+  "name": "bd-news-map-v10",
+  "version": "1.0.0",
+  "description": "BD News Map v10 — সংবাদ হোক দালাল মুক্ত।",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.18.3",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.1",
+    "ngeohash": "^0.6.3",
+    "node-cron": "^3.0.3",
+    "sql.js": "^1.12.0"
+  }
+}
