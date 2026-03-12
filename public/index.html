@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>BD News Map v10 — জনতার বার্তা</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --bg:#080c18;--bg2:#0f1525;--bg3:#161d30;
+  --glass:rgba(255,255,255,0.055);--border:rgba(255,255,255,0.09);
+  --accent:#4c7bff;--green:#00d496;--red:#ff4b6e;--gold:#f5c842;
+  --text:#e2e8ff;--muted:#6b7499;
+  --r:14px;--tabh:64px;--toph:52px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,textarea{font-family:inherit;color:var(--text)}
+a{color:var(--accent);text-decoration:none}
+
+/* BISMILLAH */
+#bbar{
+  position:fixed;top:0;left:0;right:0;z-index:2000;height:var(--toph);
+  background:rgba(8,12,24,0.97);border-bottom:1px solid rgba(245,200,66,0.2);
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  backdrop-filter:blur(16px);
+}
+.bar-ar{font-size:15px;color:var(--gold);letter-spacing:.5px}
+.bar-sep{color:rgba(245,200,66,0.3);font-size:12px}
+.bar-bn{font-size:10px;color:rgba(245,200,66,0.6);font-weight:600;letter-spacing:.4px}
+
+/* SHELL */
+#app{height:100dvh;padding-top:var(--toph);display:flex;flex-direction:column;overflow:hidden}
+#content-area{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+
+/* SCREENS */
+.screen{display:none;flex-direction:column;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--tabh)+12px)}
+.screen.active{display:flex;flex:1;min-height:0}
+#screen-map{overflow:hidden;padding-bottom:0}
+#screen-map.active{display:flex!important;flex-direction:column}
+#screen-report{overflow-y:auto;padding-bottom:0}
+#screen-report.active{display:flex;flex-direction:column}
+
+/* SCREEN HEADER */
+.shead{
+  padding:12px 16px 10px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);background:rgba(8,12,24,0.88);
+  backdrop-filter:blur(12px);position:sticky;top:0;z-index:10;flex-shrink:0;
+}
+.brand{display:flex;align-items:center;gap:10px}
+.logo-img{width:32px;height:32px;border-radius:8px;object-fit:cover;display:block}
+.logo-fb{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#2040c0);display:none;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff}
+.bname{font-size:17px;font-weight:800}
+.bsub{font-size:10px;color:var(--muted);font-weight:500;margin-top:1px}
+
+/* VERSE */
+.vcard{
+  margin:10px 14px;padding:11px 13px;
+  background:linear-gradient(135deg,rgba(245,200,66,0.07),rgba(245,200,66,0.02));
+  border:1px solid rgba(245,200,66,0.17);border-radius:var(--r);
+  position:relative;overflow:hidden;flex-shrink:0;
+}
+.vcard::before{content:'❝';position:absolute;top:4px;left:8px;font-size:28px;color:rgba(245,200,66,0.09);line-height:1}
+.vtext{font-size:12.5px;line-height:1.7;color:rgba(226,236,255,0.82);padding-left:2px}
+.vref{font-size:10px;color:var(--gold);font-weight:700;margin-top:5px;letter-spacing:.5px}
+
+/* GLASS */
+.glass{background:var(--glass);border:1px solid var(--border);border-radius:var(--r);backdrop-filter:blur(14px)}
+
+/* FEED */
+.fw{padding:4px 14px 8px}
+.slabel{font-size:10px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:var(--muted);margin:14px 0 8px}
+
+/* Hero card */
+.hcard{overflow:hidden;cursor:pointer;margin-bottom:4px;transition:transform .12s}
+.hcard:active{transform:scale(0.985)}
+.h-img{width:100%;height:175px;object-fit:cover;display:block}
+.h-noimg{width:100%;height:120px;display:flex;align-items:center;justify-content:center;font-size:40px;background:var(--bg3)}
+.h-body{padding:11px 13px 13px}
+.hbadge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:18px;margin-bottom:6px;letter-spacing:.4px}
+.breal{background:rgba(0,212,150,0.14);color:var(--green)}
+.bfake{background:rgba(255,75,110,0.14);color:var(--red)}
+.bneu{background:rgba(76,123,255,0.14);color:var(--accent)}
+.htitle{font-size:16px;font-weight:700;line-height:1.35;margin-bottom:7px}
+.hmeta{display:flex;gap:10px;font-size:11px;color:var(--muted);margin-bottom:8px;flex-wrap:wrap}
+
+/* Mini cards */
+.crow{display:flex;gap:9px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.crow::-webkit-scrollbar{display:none}
+.mcard{flex:0 0 140px;overflow:hidden;cursor:pointer;transition:transform .12s}
+.mcard:active{transform:scale(0.96)}
+.m-img{width:100%;height:86px;object-fit:cover;display:block}
+.m-noimg{width:100%;height:86px;display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--bg3)}
+.m-body{padding:7px 9px 9px}
+.m-title{font-size:12px;font-weight:600;line-height:1.3;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.m-meta{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)}
+.sp{font-size:10px;font-weight:700;padding:1px 6px;border-radius:9px}
+.sp-r{background:rgba(0,212,150,0.17);color:var(--green)}
+.sp-f{background:rgba(255,75,110,0.17);color:var(--red)}
+
+/* List card */
+.lcard{display:flex;align-items:center;gap:10px;padding:9px;margin-bottom:7px;cursor:pointer;transition:transform .12s}
+.lcard:active{transform:scale(0.98)}
+.l-img{width:60px;height:60px;flex-shrink:0;border-radius:9px;object-fit:cover;display:block}
+.l-noimg{width:60px;height:60px;flex-shrink:0;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:20px;background:var(--bg3)}
+.l-body{flex:1;min-width:0}
+.l-title{font-size:13px;font-weight:600;line-height:1.3;margin-bottom:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.l-meta{font-size:11px;color:var(--muted)}
+.l-sc{font-size:13px;font-weight:700;flex-shrink:0}
+.sc-r{color:var(--green)} .sc-f{color:var(--red)}
+
+/* truth bar */
+.tbw{background:rgba(255,75,110,0.2);border-radius:4px;height:4px;overflow:hidden}
+.tb{height:100%;background:linear-gradient(90deg,var(--green),#009870);border-radius:4px;transition:width .4s}
+
+/* empty */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;text-align:center;gap:12px;min-height:220px}
+.ei{font-size:44px}
+.empty p{color:var(--muted);font-size:13px;line-height:1.7}
+
+/* MAP */
+#map-wrap{flex:1;position:relative;min-height:0}
+#map{position:absolute;inset:0;background:var(--bg)}
+#map-fab{position:absolute;bottom:18px;right:14px;z-index:500;width:44px;height:44px;border-radius:50%;background:var(--accent);box-shadow:0 4px 16px rgba(76,123,255,0.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px}
+#map-info{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(8,12,24,0.9);color:var(--text);padding:5px 13px;border-radius:17px;font-size:11px;font-weight:600;border:1px solid var(--border);z-index:400;pointer-events:none;white-space:nowrap}
+#cell-count{position:absolute;bottom:18px;left:14px;z-index:400;background:rgba(8,12,24,0.88);color:var(--muted);padding:5px 11px;border-radius:17px;font-size:11px;border:1px solid var(--border)}
+
+/* REPORT MAP */
+#rmap-wrap{position:relative;flex-shrink:0}
+#report-map{width:100%;height:240px;background:var(--bg3)}
+#rmap-hint{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(8,12,24,0.9);color:var(--text);padding:5px 15px;border-radius:17px;font-size:12px;font-weight:600;border:1px solid var(--border);z-index:400;white-space:nowrap}
+#rmap-st{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);padding:5px 13px;border-radius:17px;z-index:400;font-size:12px;font-weight:700;display:none;white-space:nowrap;border:1.5px solid rgba(255,255,255,0.15)}
+.rst-ok{background:rgba(0,166,106,0.9);color:#fff}
+.rst-bad{background:rgba(200,20,50,0.9);color:#fff}
+.rst-cell{background:rgba(200,140,0,0.9);color:#fff}
+.rscroll{padding:14px 16px;flex:1;overflow-y:auto;padding-bottom:calc(var(--tabh)+20px)}
+.rform{display:flex;flex-direction:column;gap:13px}
+.flabel{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.fi,.fta{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:11px 12px;font-size:14px;color:var(--text);outline:none;transition:border-color .2s}
+.fi:focus,.fta:focus{border-color:var(--accent)}
+.fta{resize:vertical;min-height:78px}
+.img-lbl{display:flex;align-items:center;gap:9px;background:var(--bg2);border:1.5px dashed var(--border);border-radius:11px;padding:12px;cursor:pointer}
+.img-lbl:active{border-color:var(--accent)}
+#img-prev{display:flex;flex-wrap:wrap;gap:7px;margin-top:7px}
+#img-prev img{width:66px;height:66px;object-fit:cover;border-radius:8px}
+.btn-p{width:100%;padding:14px;border-radius:13px;background:linear-gradient(135deg,var(--accent),#2040c0);color:#fff;font-size:15px;font-weight:700;transition:opacity .15s,transform .1s}
+.btn-p:active{transform:scale(0.97);opacity:.9}
+.btn-p:disabled{opacity:.45}
+
+/* USER */
+.uhero{display:flex;flex-direction:column;align-items:center;gap:9px;padding:28px 20px 22px}
+.uav{width:66px;height:66px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#2040c0);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff}
+.uname{font-size:18px;font-weight:700}
+.usub{font-size:12px;color:var(--muted)}
+
+/* AUTH SHEET */
+#auth-overlay{display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,0.62);backdrop-filter:blur(6px);align-items:flex-end}
+#auth-overlay.open{display:flex}
+#auth-sheet{width:100%;max-width:520px;margin:0 auto;background:var(--bg2);border-radius:22px 22px 0 0;border-top:1px solid var(--border);padding:0 18px 30px;animation:sup .28s cubic-bezier(.2,.8,.4,1);max-height:90dvh;overflow-y:auto}
+@keyframes sup{from{transform:translateY(60%);opacity:.4}to{transform:none;opacity:1}}
+.sh-handle{width:38px;height:4px;border-radius:2px;background:var(--border);margin:12px auto 16px}
+.sh-icon{text-align:center;font-size:26px;margin-bottom:7px}
+.sh-title{font-size:19px;font-weight:800;text-align:center;margin-bottom:3px}
+.sh-sub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:18px}
+.atabs{display:flex;background:var(--bg3);border-radius:10px;padding:3px;margin-bottom:16px}
+.atab{flex:1;padding:8px;border-radius:8px;font-size:14px;font-weight:600;color:var(--muted);transition:all .2s}
+.atab.active{background:var(--accent);color:#fff}
+.auth-hint{font-size:11px;color:var(--muted);text-align:center;margin-top:10px}
+
+/* MODAL */
+#modal-overlay{display:none;position:fixed;inset:0;z-index:2500;background:rgba(0,0,0,0.72);backdrop-filter:blur(8px);overflow-y:auto;padding:18px 0 calc(var(--tabh)+18px)}
+#modal-overlay.open{display:block}
+#modal-content{background:var(--bg2);border:1px solid var(--border);border-radius:20px;margin:0 auto;max-width:500px;width:calc(100% - 26px);padding:14px;overflow:hidden}
+.mcar{overflow-x:auto;display:flex;gap:7px;scroll-snap-type:x mandatory;border-radius:11px;margin-bottom:12px;scrollbar-width:none}
+.mcar::-webkit-scrollbar{display:none}
+.mslide{scroll-snap-align:start;flex-shrink:0;width:100%;position:relative}
+.mcar-n{position:absolute;bottom:8px;right:10px;background:rgba(0,0,0,0.65);color:#fff;font-size:11px;padding:2px 8px;border-radius:9px}
+.noimgph{padding:32px;text-align:center;color:var(--muted);font-size:26px;margin-bottom:12px}
+.mtitle{font-size:18px;font-weight:700;line-height:1.35;margin-bottom:9px}
+.mchips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.mchip{background:var(--glass);border:1px solid var(--border);border-radius:17px;padding:3px 8px;font-size:11px;font-weight:600}
+.mchip-w{background:rgba(255,75,110,0.1);color:var(--red);border-color:rgba(255,75,110,0.22)}
+.mdesc{font-size:13px;line-height:1.65;color:rgba(226,232,255,0.76);margin-bottom:12px}
+.tbox{background:var(--glass);border:1px solid var(--border);border-radius:11px;padding:11px 13px;margin-bottom:12px}
+.tbls{display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px}
+.tbf{color:var(--red);font-weight:700} .tbr{color:var(--green);font-weight:700}
+.tbpct{text-align:center;font-size:11px;color:var(--muted);margin-top:5px}
+.vrow{display:flex;gap:8px;margin-bottom:7px}
+.bvote{flex:1;padding:12px;border-radius:11px;font-size:14px;font-weight:700;transition:opacity .15s,transform .1s}
+.bvote:active{transform:scale(0.96)}
+.bvote:disabled{opacity:.3}
+.bvr{background:linear-gradient(135deg,#00d496,#009870);color:#fff}
+.bvf{background:linear-gradient(135deg,#ff4b6e,#b00025);color:#fff}
+.vhint{text-align:center;font-size:11px;color:var(--muted);margin-bottom:10px}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.ditem{background:var(--glass);border:1px solid var(--border);border-radius:9px;padding:8px 10px}
+.dlbl{font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.dval{font-size:13px;font-weight:600}
+.mlinks a{display:block;font-size:12px;color:var(--accent);padding:5px 8px;background:var(--glass);border-radius:7px;margin-bottom:4px;word-break:break-all}
+.bdel{width:100%;padding:11px;border-radius:10px;background:rgba(255,75,110,0.09);border:1px solid rgba(255,75,110,0.22);color:var(--red);font-size:13px;font-weight:700;margin-top:5px;transition:background .2s}
+.bdel:active{background:rgba(255,75,110,0.18)}
+
+/* MAP PINS */
+.nm-pin{position:relative;border-radius:6px;overflow:hidden;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.55);transition:transform .1s}
+.nm-pin:active{transform:scale(0.9)}
+.pr{border:2.5px solid #00d496;background:linear-gradient(145deg,#00c48c,#00785a)}
+.pf{border:2.5px solid #ff4b6e;background:linear-gradient(145deg,#ff4b6e,#9a001e)}
+.pn{border:2.5px solid #4c7bff;background:linear-gradient(145deg,#4c7bff,#2238a0)}
+.nm-pin::after{content:'';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);border:7px solid transparent;border-top-color:rgba(255,255,255,0.55)}
+.nm-noimg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.1em;opacity:.5}
+
+/* SPINNER */
+.sp-box{display:flex;align-items:center;justify-content:center;min-height:150px;gap:5px}
+.sp-box b{width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block;animation:bop .7s infinite alternate}
+.sp-box b:nth-child(2){animation-delay:.2s} .sp-box b:nth-child(3){animation-delay:.4s}
+@keyframes bop{to{transform:translateY(-9px);opacity:.3}}
+
+/* TOAST */
+#toast{position:fixed;bottom:calc(var(--tabh)+11px);left:50%;transform:translateX(-50%) translateY(14px);background:rgba(18,24,44,0.97);color:var(--text);padding:8px 17px;border-radius:17px;font-size:13px;font-weight:600;white-space:nowrap;z-index:4000;opacity:0;transition:opacity .22s,transform .22s;border:1px solid var(--border);backdrop-filter:blur(12px);pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{background:rgba(140,0,25,0.97);border-color:rgba(255,75,110,0.35)}
+
+/* TABBAR */
+#tabbar{position:fixed;bottom:0;left:0;right:0;height:var(--tabh);background:rgba(8,12,24,0.97);border-top:1px solid var(--border);display:flex;align-items:stretch;z-index:1000;backdrop-filter:blur(20px)}
+.tbb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--muted);font-size:9.5px;font-weight:700;letter-spacing:.5px;transition:color .15s;-webkit-tap-highlight-color:transparent}
+.tbb.active{color:var(--accent)}
+.tbi{width:24px;height:24px;display:flex;align-items:center;justify-content:center}
+.tbi svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;transition:stroke-width .15s}
+.tbb.active .tbi svg{stroke-width:2.4}
+/* Report fab */
+.tbb[data-tab="report"] .tbi{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#2040c0);box-shadow:0 4px 18px rgba(76,123,255,0.4);margin-top:-10px}
+.tbb[data-tab="report"] .tbi svg{stroke:#fff;width:20px;height:20px}
+
+/* LEAFLET */
+.leaflet-control-attribution{display:none!important}
+.leaflet-control-zoom a{background:rgba(8,12,24,0.93)!important;color:var(--text)!important;border-color:var(--border)!important;font-size:15px!important;backdrop-filter:blur(10px)}
+.leaflet-tile{filter:brightness(0.8) saturate(0.68) hue-rotate(5deg)}
+
+/* ═══════════════════════════════════════════════════════
+   DESKTOP LAYOUT  ≥ 900px
+   Two-column: left sidebar (320px) + right content/map
+   ═══════════════════════════════════════════════════════ */
+@media (min-width:900px){
+  :root{--tabh:0px;--toph:48px}
+
+  /* Hide mobile tab bar, show desktop sidebar nav */
+  #tabbar{display:none!important}
+
+  /* Bismillah bar — slimmer */
+  #bbar{height:var(--toph);font-size:13px}
+  .bar-ar{font-size:13px} .bar-bn{font-size:9px}
+
+  /* App shell: horizontal flex */
+  #app{
+    flex-direction:row;
+    padding-top:var(--toph);
+    height:calc(100dvh - var(--toph));
+    max-width:1600px;margin:0 auto;width:100%;
+  }
+
+  /* Desktop sidebar nav */
+  #desktop-nav{
+    display:flex!important;flex-direction:column;
+    width:220px;flex-shrink:0;
+    background:rgba(8,12,24,0.97);border-right:1px solid var(--border);
+    padding:16px 10px;gap:4px;
+    position:sticky;top:var(--toph);height:calc(100dvh - var(--toph));
+    overflow-y:auto;
+  }
+  .dn-brand{padding:8px 10px 16px;border-bottom:1px solid var(--border);margin-bottom:8px}
+  .dn-logo{display:flex;align-items:center;gap:9px}
+  .dn-logo img{width:30px;height:30px;border-radius:7px;object-fit:cover}
+  .dn-logo-fb{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#2040c0);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff}
+  .dn-appname{font-size:14px;font-weight:800}
+  .dn-tagline{font-size:9px;color:var(--muted);margin-top:1px}
+  .dn-btn{
+    display:flex;align-items:center;gap:11px;
+    padding:10px 12px;border-radius:10px;
+    font-size:13px;font-weight:600;color:var(--muted);
+    transition:all .18s;cursor:pointer;border:none;background:none;
+    width:100%;text-align:left;
+  }
+  .dn-btn:hover{background:var(--glass);color:var(--text)}
+  .dn-btn.active{background:rgba(76,123,255,0.15);color:var(--accent)}
+  .dn-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+  .dn-btn.active svg{stroke-width:2.3}
+  .dn-report{
+    margin-top:auto;background:linear-gradient(135deg,var(--accent),#2040c0)!important;
+    color:#fff!important;border-radius:11px;
+  }
+  .dn-report svg{stroke:#fff!important}
+  .dn-spacer{flex:1}
+
+  /* Content area: takes remaining space */
+  #content-area{
+    flex:1;min-width:0;
+    display:flex;flex-direction:column;
+    height:calc(100dvh - var(--toph));
+    overflow:hidden;
+  }
+
+  /* Screens: fill content area */
+  .screen{padding-bottom:0}
+  #screen-home,#screen-explore,#screen-user{overflow-y:auto}
+  #screen-map{flex:1}
+  #screen-report{overflow-y:auto}
+
+  /* Screen header: no sticky needed on desktop, less padding */
+  .shead{padding:12px 20px 10px}
+
+  /* Feed max-width on desktop */
+  .fw{max-width:720px;margin:0 auto;padding:4px 20px 20px}
+  .rscroll{max-width:680px;margin:0 auto}
+
+  /* Map takes full content area height */
+  #map-wrap{flex:1;min-height:0}
+
+  /* Report map taller */
+  #report-map{height:320px}
+
+  /* Cards: slightly smaller text already fine, but grid the mini cards */
+  .crow{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+  .mcard{flex:none}
+
+  /* Verse card max-width */
+  .vcard{max-width:720px;margin-left:auto;margin-right:auto;margin-left:20px;margin-right:20px}
+
+  /* Modal: centered dialog, not full-screen */
+  #modal-overlay{display:none;align-items:center;justify-content:center;padding:0}
+  #modal-overlay.open{display:flex}
+  #modal-content{
+    max-width:560px;width:calc(100% - 40px);
+    max-height:90vh;overflow-y:auto;
+    border-radius:20px;
+  }
+
+  /* Auth sheet: centered modal on desktop */
+  #auth-overlay{align-items:center;justify-content:center}
+  #auth-sheet{
+    border-radius:18px;max-width:400px;
+    padding-bottom:24px;margin:0;
+    border:1px solid var(--border);
+  }
+  .sh-handle{display:none}
+
+  /* User section */
+  #user-content .uhero{padding:40px 20px 28px}
+
+  /* hero card wider */
+  .h-img{height:240px}
+}
+
+/* Wide desktop ≥ 1200px: 3-col optional future */
+@media (min-width:1200px){
+  #desktop-nav{width:240px}
+  .fw{max-width:800px}
+  .rscroll{max-width:760px}
+}
+
+/* DONATION CARD */
+.donate-card{margin:20px 0 8px;padding:16px}
+.dc-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.dc-msg{font-size:13px;line-height:1.65;color:rgba(226,232,255,.82);margin-bottom:14px;padding:10px 12px;background:rgba(245,200,66,.07);border-left:3px solid var(--gold);border-radius:0 8px 8px 0}
+.dc-methods{display:flex;flex-direction:column;gap:8px}
+.dc-method{display:flex;align-items:center;gap:12px;background:var(--bg3);border:1px solid var(--border);border-radius:11px;padding:10px 13px;cursor:pointer;transition:border-color .18s,background .18s}
+.dc-method:active{background:var(--glass);border-color:var(--accent)}
+.dc-logo{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;flex-shrink:0}
+.dc-info{flex:1}
+.dc-label{font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--muted);text-transform:uppercase}
+.dc-num{font-size:15px;font-weight:800;letter-spacing:.5px;margin-top:1px}
+.dc-copy{font-size:18px;flex-shrink:0}
+.dc-footer{text-align:center;font-size:10px;color:var(--muted);margin-top:12px}
+</style>
+</head>
+<body>
+
+<div id="bbar">
+  <span class="bar-ar">بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِيْمِ</span>
+  <span class="bar-sep">·</span>
+  <span class="bar-bn">পরম করুণাময়ের নামে শুরু</span>
+</div>
+
+<div id="app">
+
+  <!-- DESKTOP SIDEBAR NAV (hidden on mobile via CSS) -->
+  <nav id="desktop-nav" style="display:none">
+    <div class="dn-brand">
+      <div class="dn-logo">
+        <img src="/logo.png" alt="logo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="dn-logo-fb" style="display:none">জ</div>
+        <div><div class="dn-appname">জনতার বার্তা</div><div class="dn-tagline">সংবাদ হোক দালাল মুক্ত।</div></div>
+      </div>
+    </div>
+    <button class="dn-btn active" data-tab="home" onclick="switchTab('home')">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>হোম
+    </button>
+    <button class="dn-btn" data-tab="map" onclick="switchTab('map')">
+      <svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>মানচিত্র
+    </button>
+    <button class="dn-btn" data-tab="explore" onclick="switchTab('explore')">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>অন্বেষণ
+    </button>
+    <div class="dn-spacer"></div>
+    <button class="dn-btn dn-report" data-tab="report" onclick="switchTab('report')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>সংবাদ রিপোর্ট
+    </button>
+    <button class="dn-btn" data-tab="user" onclick="switchTab('user')" style="margin-top:6px">
+      <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>আমার অ্যাকাউন্ট
+    </button>
+  </nav>
+  <!-- CONTENT AREA WRAPPER (desktop: right side; mobile: full width) -->
+  <div id="content-area">
+
+  <!-- HOME -->
+  <div id="screen-home" class="screen active">
+    <div class="shead">
+      <div class="brand">
+        <img src="/logo.png" class="logo-img" alt="logo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="logo-fb">জ</div>
+        <div><div class="bname">জনতার বার্তা</div><div class="bsub">সংবাদ হোক দালাল মুক্ত।</div></div>
+      </div>
+    </div>
+    <div id="vh" class="vcard"></div>
+    <div class="fw" id="home-content"><div class="sp-box"><b></b><b></b><b></b></div></div>
+  </div>
+
+  <!-- MAP -->
+  <div id="screen-map" class="screen">
+    <div class="shead">
+      <div class="brand">
+        <div><div class="bname">মানচিত্র</div><div class="bsub">৫০০মি এলাকার সংবাদ · ৫মি×৫মি ঘর</div></div>
+      </div>
+    </div>
+    <div id="map-wrap">
+      <div id="map"></div>
+      <div id="map-info">অবস্থান নির্ধারণ হচ্ছে…</div>
+      <div id="cell-count"></div>
+      <button id="map-fab" onclick="locateMe()">⊕</button>
+    </div>
+  </div>
+
+  <!-- EXPLORE -->
+  <div id="screen-explore" class="screen">
+    <div class="shead"><div class="brand"><div><div class="bname">অন্বেষণ</div><div class="bsub">আশেপাশের সব সংবাদ</div></div></div></div>
+    <div id="ve" class="vcard"></div>
+    <div class="fw" id="explore-content"><div class="sp-box"><b></b><b></b><b></b></div></div>
+  </div>
+
+  <!-- USER -->
+  <div id="screen-user" class="screen">
+    <div class="shead"><div class="brand"><div><div class="bname">আমার অ্যাকাউন্ট</div><div class="bsub">জনতার বার্তা</div></div></div></div>
+    <div id="vu" class="vcard"></div>
+    <div id="user-content"></div>
+  </div>
+
+  <!-- REPORT -->
+  <div id="screen-report" class="screen">
+    <div class="shead">
+      <div class="brand"><div><div class="bname">সংবাদ <span style="color:var(--accent)">রিপোর্ট</span></div><div class="bsub">৫মি×৫মি এলাকায় পিন করুন</div></div></div>
+    </div>
+    <div id="rmap-wrap">
+      <div id="report-map"></div>
+      <div id="rmap-hint">📍 মানচিত্রে ট্যাপ করে পিন করুন</div>
+      <div id="rmap-st"></div>
+    </div>
+    <div class="rscroll">
+      <div class="rform">
+        <div><div class="flabel">শিরোনাম *</div><input class="fi" id="r-title" placeholder="কী ঘটেছে?" maxlength="120"></div>
+        <div><div class="flabel">বিবরণ</div><textarea class="fta" id="r-desc" placeholder="বিস্তারিত লিখুন…" maxlength="1000"></textarea></div>
+        <div><div class="flabel">সূত্র লিঙ্ক</div><input class="fi" id="r-links" placeholder="https://…" type="url"></div>
+        <div>
+          <div class="flabel">ছবি (সর্বোচ্চ ১০টি)</div>
+          <label class="img-lbl" for="r-images">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+            <span style="color:var(--muted);font-size:13px">ছবি যোগ করুন</span>
+          </label>
+          <input type="file" id="r-images" accept="image/*" multiple style="display:none" onchange="prevImgs(this)">
+          <div id="img-prev"></div>
+        </div>
+        <button class="btn-p" id="submit-btn" onclick="submitReport()">প্রকাশ করুন</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div id="modal-overlay" onclick="closeModal(event)"><div id="modal-content"></div></div>
+
+  <!-- AUTH SHEET -->
+  <div id="auth-overlay" onclick="closeAuthBg(event)">
+    <div id="auth-sheet">
+      <div class="sh-handle"></div>
+      <div class="sh-icon">🕌</div>
+      <div class="sh-title">জনতার বার্তা</div>
+      <div class="sh-sub">সংবাদ রিপোর্ট করতে লগইন করুন</div>
+      <div class="atabs">
+        <button class="atab active" id="atab-l" onclick="authTab('login')">লগইন</button>
+        <button class="atab" id="atab-r" onclick="authTab('register')">নিবন্ধন</button>
+      </div>
+      <form id="auth-form" action="javascript:void(0)" autocomplete="on" onsubmit="doAuth(event)">
+        <div style="margin-bottom:11px">
+          <div class="flabel">ফোন নম্বর</div>
+          <input class="fi" id="a-phone" name="tel" type="tel" autocomplete="tel" inputmode="numeric" placeholder="01XXXXXXXXX" required>
+        </div>
+        <div style="margin-bottom:14px">
+          <div class="flabel">পাসওয়ার্ড</div>
+          <input class="fi" id="a-pass" name="password" type="password" autocomplete="current-password" placeholder="পাসওয়ার্ড লিখুন" required minlength="6">
+        </div>
+        <button type="submit" class="btn-p" id="auth-btn">প্রবেশ করুন</button>
+      </form>
+      <div class="auth-hint">ব্রাউজার পাসওয়ার্ড সংরক্ষণ করবে</div>
+    </div>
+  </div>
+
+
+  </div><!-- /content-area -->
+  <div id="toast"></div>
+
+  <nav id="tabbar">
+    <button class="tbb active" data-tab="home" onclick="switchTab('home')">
+      <div class="tbi"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+      <span>হোম</span>
+    </button>
+    <button class="tbb" data-tab="map" onclick="switchTab('map')">
+      <div class="tbi"><svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></div>
+      <span>মানচিত্র</span>
+    </button>
+    <button class="tbb" data-tab="report" onclick="switchTab('report')">
+      <div class="tbi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+      <span>রিপোর্ট</span>
+    </button>
+    <button class="tbb" data-tab="explore" onclick="switchTab('explore')">
+      <div class="tbi"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+      <span>অন্বেষণ</span>
+    </button>
+    <button class="tbb" data-tab="user" onclick="switchTab('user')">
+      <div class="tbi"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+      <span>আমি</span>
+    </button>
+  </nav>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
